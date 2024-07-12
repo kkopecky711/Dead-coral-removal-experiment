@@ -1,0 +1,100 @@
+Date sampled,Plot #,Treatment,Taxa,Size bin (cm),Substrate
+7/10/23,1,Removal,Pocillopora,2-3,Rubble
+7/10/23,1,Removal,Pocillopora,2-3,Reef
+7/10/23,1,Removal,Acropora,4-5,Reef
+7/10/23,2,Retention,Pocillopora,0-1,Dead Coral
+7/10/23,2,Retention,Pocillopora,1-2,Dead Coral
+7/10/23,2,Retention,Acropora,1-2,Dead Coral
+7/10/23,2,Retention,Acropora,1-2,Dead Coral
+7/10/23,2,Retention,Acropora,1-2,Dead Coral
+7/10/23,2,Retention,Porites,1-2,Dead Coral
+7/10/23,2,Retention,Porites,1-2,Dead Coral
+7/10/23,2,Retention,Pocillopora,2-3,Dead Coral
+7/10/23,2,Retention,Acropora,4-5,Reef
+7/10/23,3,Retention,Acropora,0-1,Dead Coral
+7/10/23,3,Retention,Pocillopora,1-2,Dead Coral
+7/10/23,3,Retention,Acropora,1-2,Dead Coral
+7/10/23,3,Retention,Acropora,1-2,Dead Coral
+7/10/23,3,Retention,Acropora,1-2,Dead Coral
+7/10/23,3,Retention,Porites,1-2,Dead Coral
+7/10/23,3,Retention,Acropora,2-3,Dead Coral
+7/10/23,3,Retention,Acropora,2-3,Reef
+7/10/23,3,Retention,Acropora,2-3,Dead Coral
+7/10/23,3,Retention,Acropora,2-3,Dead Coral
+7/10/23,3,Retention,Acropora,2-3,Dead Coral
+7/10/23,3,Retention,Acropora,3-4,Dead Coral
+7/10/23,4,Removal,Pocillopora,1-2,Dead Coral
+7/10/23,4,Removal,Pocillopora,2-3,Dead Coral
+7/10/23,4,Removal,Acropora,1-2,Dead Coral
+7/10/23,4,Removal,Acropora,2-3,Dead Coral
+7/10/23,5,Retention,Pocillopora,1-2,Reef
+7/10/23,5,Retention,Pocillopora,2-3,Dead Coral
+7/10/23,5,Retention,Acropora,1-2,Dead Coral
+07/11/2023,10,Removal,Pocillopora,1-2,Reef
+07/11/2023,10,Removal,Pocillopora,2-3,Reef
+07/11/2023,10,Removal,Pocillopora,3-4,Reef
+07/11/2023,9,Retention,Pocillopora,0-1,Reef
+07/11/2023,9,Retention,Acropora,1-2,Dead Coral
+07/11/2023,8,Retention,No Recruits,,
+07/11/2023,7,Retention,Pocillopora,1-2,Dead Coral
+07/11/2023,7,Retention,Porites,1-2,Reef
+07/11/2023,6,Removal,Pocillopora,0-1,Rubble
+07/11/2023,6,Removal,Acropora,3-4,Reef
+07/11/2023,6,Removal,Acropora,3-4,Reef
+07/11/2023,14,Removal,Pocillopora,2-3,Dead Coral
+07/11/2023,14,Removal,Pocillopora,2-3,Dead Coral
+07/11/2023,13,Retention,Pocillopora,0-1,Dead Coral
+07/11/2023,13,Retention,Pocillopora,1-2,Dead Coral
+07/11/2023,13,Retention,Pocillopora,1-2,Dead Coral
+07/11/2023,13,Retention,Acropora,1-2,Dead Coral
+07/11/2023,13,Retention,Acropora,1-2,Dead Coral
+07/11/2023,13,Retention,Acropora,1-2,Dead Coral
+07/11/2023,13,Retention,Acropora,1-2,Dead Coral
+07/11/2023,13,Retention,Acropora,2-3,Dead Coral
+07/11/2023,13,Retention,Acropora,2-3,Dead Coral
+07/11/2023,13,Retention,Acropora,2-3,Dead Coral
+07/11/2023,13,Retention,Acropora,2-3,Dead Coral
+07/11/2023,13,Retention,Pocillopora,3-4,Dead Coral
+07/11/2023,13,Retention,Acropora,3-4,Dead Coral
+07/11/2023,13,Retention,Acropora,3-4,Dead Coral
+07/11/2023,13,Retention,Acropora,3-4,Dead Coral
+07/11/2023,15,Removal,Porites,1-2,Reef
+07/11/2023,15,Removal,Porites,3-4,Reef
+07/11/2023,15,Removal,Acropora,4-5,Reef
+07/11/2023,11,Removal,Pocillopora,1-2,Rubble
+07/11/2023,11,Removal,Porites,3-4,Reef
+07/11/2023,12,Retention,Pocillopora,1-2,Dead Coral
+07/11/2023,12,Retention,Pocillopora,2-3,Dead Coral
+07/11/2023,12,Retention,Pocillopora,2-3,Dead Coral
+07/12/2023,16,Removal,Pocillopora,1-2,Dead Coral
+07/12/2023,16,Removal,Pocillopora,1-2,Dead Coral
+07/12/2023,16,Removal,Pocillopora,1-2,Dead Coral
+07/12/2023,16,Removal,Porites,2-3,Reef
+07/12/2023,16,Removal,Porites,2-3,Reef
+07/12/2023,16,Removal,Porites,2-3,Reef
+07/12/2023,16,Removal,Acropora,1-2,Dead Coral
+07/12/2023,16,Removal,Pocillopora,0-1,Dead Coral
+07/12/2023,17,Retention,Acropora,2-3,Dead Coral
+07/12/2023,17,Retention,Acropora,2-3,Reef
+07/12/2023,17,Retention,Pocillopora,3-4,Reef
+07/12/2023,18,Retention,Pocillopora,2-3,Reef
+07/12/2023,18,Retention,Pocillopora,1-2,Dead Coral
+07/12/2023,18,Retention,Acropora,3-4,Dead Coral
+07/12/2023,18,Retention,Pocillopora,3-4,Rubble 
+07/12/2023,18,Retention,Pocillopora,2-3,Rubble
+07/12/2023,20,Removal,Pocillopora,2-3,Dead Coral
+07/12/2023,20,Removal,Acropora,3-4,Dead Coral
+07/12/2023,20,Removal,Pocillopora,2-3,Reef
+07/12/2023,20,Removal,Acropora,1-2,Reef
+07/12/2023,20,Removal,Pocillopora,3-4,Reef
+07/12/2023,20,Removal,Acropora,3-4,Reef
+07/12/2023,20,Removal,Acropora,4-5,Reef
+07/12/2023,20,Removal,Acropora,2-3,Reef
+07/12/2023,20,Removal,Pocillopora,1-2,Reef
+07/12/2023,20,Removal,Porites,2-3,Reef
+07/12/2023,19,Removal,Pocillopora,3-4,Dead Coral
+07/12/2023,19,Removal,Acropora,2-3,Reef
+07/12/2023,19,Removal,Pocillopora,2-3,Dead Coral
+07/12/2023,19,Removal,Acropora,3-4,Reef
+07/12/2023,19,Removal,Pocillopora,3-4,Reef
+07/12/2023,19,Removal,Acropora,4-5,Reef

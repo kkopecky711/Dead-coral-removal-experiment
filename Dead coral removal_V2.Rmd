@@ -1,0 +1,724 @@
+---
+title: "Dead coral removal_V2"
+author: "Kai Kopecky"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Packages}
+library(tidyverse)
+library(janitor)
+library(car)
+library(lme4)
+library(ggpattern)
+library(chisq.posthoc.test)
+library(DHARMa)
+library(glmmTMB)
+library(ggeffects)
+library(calecopal)
+library(gganimate)
+library(gifski)
+library(emmeans)
+```
+
+```{r Globally used data}
+
+# Live and dead coral annotations
+regions_master <- read_csv("Data/Regions_master.csv") %>% 
+  clean_names
+
+# Load raw data and calculate percent cover
+algae <- read_csv("Data/Algae point data.csv") %>% 
+  clean_names() %>% 
+  mutate(time_point = as.factor(time_point),
+         prop_cover = (points/total_points),
+         perc_cover = prop_cover*100)
+
+```
+
+## Time series
+#### Proportion of live coral remaining over time
+```{r Live coral data wrangling}
+## Live coral raw data
+# Create dataframe for live coral only
+live_coral <- regions_master %>% 
+  filter(tag_lab_class_name == "Pocillopora" | tag_lab_class_name == "Acropora") %>% 
+  group_by(plot, treatment, tag_lab_date) %>% 
+  summarize(live_coral.total_surf = sum(tag_lab_surf_area)) %>% 
+  mutate(m_sq = live_coral.total_surf*0.0001,
+         years_since_start = case_when(tag_lab_date == "8/1/19" ~ 0,
+                                       tag_lab_date == "8/1/20" ~ 1,
+                                       tag_lab_date == "8/1/21" ~ 2,
+                                       tag_lab_date == "8/1/22" ~ 3,
+                                       tag_lab_date == "8/1/23" ~ 4),
+         time_point = case_when(tag_lab_date == "8/1/19" ~ 2019,
+                                       tag_lab_date == "8/1/20" ~ 2020,
+                                       tag_lab_date == "8/1/21" ~ 2021,
+                                       tag_lab_date == "8/1/22" ~ 2022,
+                                       tag_lab_date == "8/1/23" ~ 2023),
+         time_point = as.factor(time_point))
+
+## Proportional changes
+# Create dataframe of initial amount of dead coral
+live_coral_initial <- live_coral %>% 
+  filter(years_since_start == 0) %>% 
+  ungroup() %>% 
+  rename(live_coral.initial = live_coral.total_surf) %>% 
+  select(c(1,4))
+
+# Create dataframe of proportional loss of live coral at each time point in each treatment
+live_coral.prop <- merge(live_coral, live_coral_initial)
+live_coral.prop <- live_coral.prop %>% 
+  mutate(live_coral.prop_rem = live_coral.total_surf/live_coral.initial)
+
+```
+
+```{r Stats for live coral time series}
+
+# Create dataframe without initial time point
+live_coral.prop.shortened <- live_coral.prop %>% 
+  filter(years_since_start != 0)
+
+# Generalized linear mixed effects model of proportion of live coral remaining ~ the interaction of treatment and time point (categorical)
+# Beta distribution used because response variable is proportional
+# Plot identity as random effect to account for random variation among replicate plots and repeated measures of plots through time
+
+live_coral.glmm.beta <- glmmTMB(live_coral.prop_rem ~ treatment*time_point + (1|plot),
+               data = live_coral.prop.shortened,
+               family = beta_family(link = "logit"))
+
+summary(live_coral.glmm.beta)# Summary of GLMM 
+hist(residuals(live_coral.glmm.beta), breaks = 20) # Histogram of residuals
+
+# Generate predictions and confidence intervals from model, then turn into data frame
+predictions.live_coral <- ggpredict(live_coral.glmm.beta, terms = ~time_point + treatment)
+plot(predictions.live_coral)
+predictions.live_coral <- as.data.frame(predictions.live_coral)
+
+#Gives model predictions on scale of link function
+emmeans.coral <- emmeans(live_coral.glmm.beta, ~ treatment | time_point) 
+
+# Adjusted p-values for pairwise treatment comparisons in each year 
+pairs(emmeans.coral, adjust = "bonferronni", type = "response")
+
+```
+
+```{r Visualization of live coral remaining over time}
+
+# Add values for first time point back into dataframe
+predictions.live_coral <- predictions.live_coral %>% 
+  add_row(x = "2019", predicted = 1, std.error = 0, conf.low = 0, conf.high = 0, group = "Removal") %>%
+  add_row(x = "2019", predicted = 1, std.error = 0, conf.low = 0, conf.high = 0, group = "Retention")
+
+# Time series using model-predicted means and confidence intervals
+live_coral.prop %>%
+  ggplot(aes(x = time_point, y = live_coral.prop_rem))+
+  geom_point(aes(shape = treatment),
+             alpha = 0.5)+
+  geom_line(data = predictions.live_coral, 
+            aes(x = x , y = predicted, group = group))+
+  geom_errorbar(data = predictions.live_coral, 
+                aes(x = x, y = predicted, 
+                    ymin =conf.low, ymax = conf.high),
+                width = 0)+
+  geom_point(data = predictions.live_coral, 
+             aes(x = x, y = predicted, shape = group),
+             size = 3)+
+  geom_point(data = predictions.live_coral, 
+             aes(x = x, y = predicted, shape = group),
+             size = 2,
+             color = "#CACFD0") +
+  scale_y_continuous(limits = c(0, 1.1),
+                     expand = c(0, 0)) +
+  labs(x = "Year",
+       y = "Proportion of live coral remaining") +
+  scale_shape_manual(values = c(19,17),
+                     labels = c("Removal", "Retention"),
+                     name = "Skeleton treatment") +
+  #coord_fixed(ratio = 3) +
+  theme_classic(base_size = 12)
+
+```
+
+```{r Live coral cover in 2023}
+# Live coral cover in 2023
+live_coral.2023 <- live_coral %>% 
+  filter(time_point == "2023") 
+
+live_coral.2023.summary <- live_coral.2023 %>% 
+  group_by(treatment) %>% 
+  summarize(mean_cover = mean(m_sq),
+            SE = sd(m_sq)/sqrt(n()))
+
+ggplot(live_coral.2023.summary, aes(x = treatment, y = mean_cover, shape = treatment)) +
+  geom_errorbar(aes(ymax = mean_cover + SE,
+                    ymin = mean_cover - SE),
+                width = 0) +
+  geom_point(data = live_coral.2023, aes(x = treatment, y = m_sq),
+             size = 2,
+             alpha = 0.5) +
+  geom_point(size = 4) +
+  geom_point(size = 3,
+             color = "#CACFD0") +
+  labs(x = "Skeleton treatment",
+       y = Surface~area~of~live~coral~(m^2)) +
+  coord_fixed(ratio = 1.5) +
+  scale_y_continuous(limits = c(0,2.2),
+                     expand = c(0,0)) +
+  scale_shape_manual(values = c(19,17),
+                    name = "Skeleton treatment",
+                    labels = c("Removal", "Retention")) +
+  theme_classic(base_size = 12)
+
+```
+
+
+#### Percent cover of macroalgae over time
+```{r Data wrangling for macroalgae cover}
+
+# Create summary table for total algae cover in each treatment/time point 
+algae_totals <- algae %>% 
+  group_by(plot, treatment, time_point) %>% 
+  summarize(total_cover.prop = sum(prop_cover),
+            total_cover = sum(perc_cover))
+```
+
+```{r Stats for macroalgae time series}
+
+# Create dataframe without initial time point
+macroalgae.prop.shortened <- algae_totals %>% 
+  filter(time_point != "2019")
+
+# Generalized linear mixed effects model of proportional cover of macroalgae ~ the interaction of treatment and time point (categorical)
+# Beta distribution used because response variable is proportional
+# Plot identity as random effect to account for random variation among replicate plots and repeated measures of plots through time
+
+algae.glmm.beta <- glmmTMB(total_cover.prop ~ treatment*time_point + (1|plot),
+               data = macroalgae.prop.shortened,
+               family = beta_family(link = "logit"))
+
+summary(algae.glmm.beta)# Summary of GLMM 
+hist(residuals(algae.glmm.beta), breaks = 20) # Histogram of residuals
+
+# Generate predictions and confidence intervals from model, then turn into data frame
+predictions.algae <- ggpredict(algae.glmm.beta, terms = ~time_point + treatment)
+plot(predictions.algae)
+predictions.algae <- as.data.frame(predictions.algae)
+
+#Gives model predictions on scale of link function
+emmeans.algae <- emmeans(algae.glmm.beta, ~ treatment | time_point) 
+
+# Adjusted p-values for pairwise treatment comparisons in each year 
+pairs(emmeans.algae, adjust = "bonferronni", type = "response")
+
+```
+
+```{r Visualization for algae time series}
+# Calculate mean algae cover in each treatment for 2019
+algae_totals %>% 
+  filter(time_point == "2019") %>% 
+  group_by(treatment) %>% 
+  summarize(mean_cover.prop = mean(total_cover.prop),
+            SE = sd(total_cover.prop)/sqrt(n()),
+            CI = SE*2)
+
+# Add values for first time point back into dataframe
+predictions.algae <- predictions.algae %>% 
+  add_row(x = "2019", predicted = 0.00229, std.error = 0.001, conf.low = 0.00201, conf.high = 0.00201, group = "Removal") %>%
+  add_row(x = "2019", predicted = 0.0109, std.error = 0.00232, conf.low = 0.00464, conf.high = 0.00464, group = "Retention")
+
+# Time series using model-predicted means and confidence intervals (multiplied by 100 to get percent cover)
+algae_totals %>%
+  ggplot(aes(x = time_point, y = total_cover))+
+  geom_point(aes(shape = treatment),
+             alpha = 0.5) +
+  geom_line(data = predictions.algae, 
+            aes(x = x , y = predicted*100, group = group))+
+  geom_errorbar(data = predictions.algae, 
+                aes(x = x, y = predicted*100, 
+                    ymin =conf.low*100, ymax = conf.high*100),
+                width = 0)+
+  geom_point(data = predictions.algae, 
+             aes(x = x, y = predicted*100, shape = group),
+             size = 3)+
+  geom_point(data = predictions.algae, 
+             aes(x = x, y = predicted*100, shape = group),
+             size = 2,
+             color = "#CACFD0") +
+  scale_y_continuous(limits = c(0, 40),
+                     expand = c(0, 0)) +
+  labs(x = "Year",
+       y = "Percent cover of macroalgae") +
+  scale_shape_manual(values = c(19,17),
+                     labels = c("Removal", "Retention"),
+                     name = "Skeletal treatment") +
+  #coord_fixed(ratio = 3) +
+  theme_classic(base_size = 12)
+
+```
+
+```{r Algae cover in 2023}
+
+algae.2023 <- algae_totals %>% 
+  filter(time_point == "2023") 
+
+algae.2023.summary <- algae.2023 %>% 
+  group_by(treatment) %>% 
+  summarize(mean_cover = mean(total_cover),
+            SE = sd(total_cover)/sqrt(n()))
+
+ggplot(algae.2023.summary, aes(x = treatment, y = mean_cover, shape = treatment)) +
+  geom_errorbar(aes(ymax = mean_cover + SE,
+                    ymin = mean_cover - SE),
+                width = 0) +
+  geom_point(data = algae.2023, aes(x = treatment, y = total_cover),
+             size = 2,
+             alpha = 0.5) +
+  geom_point(size = 4) +
+  geom_point(size = 3,
+             color = "#CACFD0") +
+  labs(x = "Skeleton treatment",
+       y = "Percent cover of macroalgae") +
+  coord_fixed(ratio = 0.15) +
+  scale_y_continuous(limits = c(0,25),
+                     expand = c(0,0)) +
+  scale_shape_manual(values = c(19,17),
+                    name = "Skeleton treatment",
+                    labels = c("Removal", "Retention")) +
+  theme_classic(base_size = 12)
+```
+
+#### Algae time series separated by algal taxa
+```{r}
+
+# Create summary table of algae by taxa
+algae_taxa.summary <- algae %>% 
+  mutate(time_point = as.numeric(time_point),
+         time_point = case_when(time_point == 1 ~ 2019,
+                                time_point == 2 ~ 2020,
+                                time_point == 3 ~ 2021,
+                                time_point == 4 ~ 2022,
+                                time_point == 5 ~ 2023)) %>% 
+  group_by(algal_taxa, time_point) %>% 
+  summarize(mean_cover.taxa = mean(perc_cover)) %>% 
+  mutate(algal_taxa = as.factor(algal_taxa))
+ 
+algae_taxa.summary$algal_taxa <- factor(algae_taxa.summary$algal_taxa, levels = c("Lobophora", "Asparagopsis", "Halimeda", "Turbinaria"))
+
+ggplot(algae_taxa.summary, aes(x = time_point, y = mean_cover.taxa, fill = algal_taxa)) +
+  geom_area(linewidth = 0.5, 
+            colour="black") +
+  #facet_wrap(~treatment) +
+  labs(x = "Year",
+       y = "Percent cover of macroalgae") +
+  scale_fill_manual(values = c("#44781E", "#2C3B75", "#A1B654", "#565052"),
+                    name = 'Algal taxa') +
+  theme_classic(base_size = 14)
+
+## Stacked area chart with proportions of algae rather than total percent cover
+algae_prop <- algae %>%
+  group_by(plot, algal_taxa, time_point) %>%
+  summarize(taxa_cover = sum(perc_cover))
+
+algae_prop <- merge(algae_prop, algae_totals)
+
+algae_prop.summary <- algae_prop %>%
+  mutate(time_point = as.numeric(time_point),
+         time_point = case_when(time_point == 1 ~ 2019,
+                                time_point == 2 ~ 2020,
+                                time_point == 3 ~ 2021,
+                                time_point == 4 ~ 2022,
+                                time_point == 5 ~ 2023)) %>% 
+  mutate(prop_cover = taxa_cover/total_cover) %>%
+  group_by(algal_taxa, time_point) %>%
+  summarize(mean_prop = mean(prop_cover)) %>%
+  mutate(mean_prop = replace_na(mean_prop, 0))
+
+algae_prop.summary$algal_taxa <- factor(algae_prop.summary$algal_taxa, levels = c("Lobophora", "Asparagopsis", "Halimeda", "Turbinaria"))
+
+ggplot(algae_prop.summary, aes(x = time_point, y = mean_prop, fill = algal_taxa)) +
+  geom_area(linewidth = 0.5,
+            colour="black") +
+  #facet_wrap(~treatment) +
+  labs(x = "Year",
+       y = "Proportion of macroalgal cover") +
+  scale_fill_manual(values = c("#44781E", "#2C3B75", "#A1B654", "#565052"),
+                    name = 'Algal taxa') +
+  theme_classic(base_size = 14)
+
+
+```
+
+
+## Relationships between dead coral, algae, and live coral 
+#### Algae cover ~ dead coral cover
+```{r Data wrangling for dead coral cover and algae}
+
+# Create dataframe of dead coral cover
+dead_coral <- regions_master %>%
+  filter(tag_lab_class_name == "Dead coral") %>% 
+  group_by(plot, treatment, tag_lab_date) %>% 
+  summarize(dead_coral.m_sq = sum(tag_lab_surf_area)*0.0001) %>% 
+  mutate(time_point = case_when(tag_lab_date == "8/1/19" ~ 2019,
+                                       tag_lab_date == "8/1/20" ~ 2020,
+                                       tag_lab_date == "8/1/21" ~ 2021,
+                                       tag_lab_date == "8/1/22" ~ 2022,
+                                       tag_lab_date == "8/1/23" ~ 2023),
+         time_point = as.factor(time_point))
+
+# Build merged dataframe of dead coral and macroalgae cover
+algae.dead_coral <- merge(algae_totals, dead_coral)
+
+```
+
+```{r Statistics for algae cover ~ dead coral}
+
+# Remove initial time point
+algae.dead_coral.short <- algae.dead_coral %>% 
+  filter(time_point != "2019")
+
+# Generalized linear mixed effects model of proportional cover of macroalgae ~ dead coral cover, time point and plot as random effects
+algae.dead_coral.glmm <- glmmTMB(total_cover.prop ~ dead_coral.m_sq + (1|time_point) + (1|plot), 
+                    family = beta_family(link = "logit"),
+                    data = algae.dead_coral.short)
+summary(algae.dead_coral.glmm)
+
+# Get confidence intervals for model
+confint(algae.dead_coral.glmm)
+
+# Explore residuals of model for normality
+hist(residuals(algae.dead_coral.glmm))
+car::qqPlot(residuals(algae.dead_coral.glmm))
+
+# Plot of predicted relationship
+plot(ggpredict(algae.dead_coral.glmm, terms = ~dead_coral.m_sq))
+
+# Create dataframe of model predictions
+algae.dead_coral.predictions <- as.data.frame(ggpredict(algae.dead_coral.glmm, terms = ~dead_coral.m_sq))
+
+```
+
+```{r Visualization of algae cover ~ dead coral cover}
+
+algae.dead_coral.short %>%
+  ggplot()+
+  geom_ribbon(data = algae.dead_coral.predictions, 
+              aes(x = x, y = predicted*100, ymin =conf.low*100, ymax = conf.high*100), 
+              alpha =0.5,
+              fill = "#3B4F8E")+
+  geom_line(data = algae.dead_coral.predictions, 
+            aes(x = x , y = predicted*100))+
+  geom_point(aes(x = dead_coral.m_sq, y = total_cover, shape = treatment),
+             alpha = 0.6,
+             size = 2)+
+  labs(x = "Dead coral (m^2)",
+       y = "Macroalgae % cover") +
+  scale_shape_manual(values = c(19,17),
+                     labels = c("Removal", "Retention"),
+                     name = "Skeleton treatment") +
+  theme_classic(base_size = 14)
+
+```
+
+#### Annual loss of live coral ~ annual macroalgae cover
+```{r Data wrangling for live coral loss ~ algae cover}
+
+# Create dataframe for proportional changes in live coral in each year (time period)
+coral_change.prop <- live_coral %>%
+  select(-c(tag_lab_date, live_coral.total_surf, years_since_start)) %>%
+  rename(live_coral.m_sq = m_sq) %>%
+  pivot_wider(names_from = time_point, values_from = live_coral.m_sq) %>%
+  rename(year_0 = "2019",
+         year_1 = "2020",
+         year_2 = "2021",
+         year_3 = "2022",
+         year_4 = "2023") %>%
+  mutate(delta.1 = (year_1 - year_0)/year_0,
+         delta.2 = (year_2 - year_1)/year_1,
+         delta.3 = (year_3 - year_2)/year_2,
+         delta.4 = (year_4 - year_3)/year_3)
+
+coral_change.prop <- coral_change.prop %>%
+  select(-c(year_0, year_1, year_2, year_3, year_4)) %>%
+  pivot_longer(cols = c("delta.1", "delta.2", "delta.3", "delta.4"),
+               names_to = "delta_year",
+               values_to = "delta_coral") %>%
+  drop_na() %>%
+  mutate(period = case_when(delta_year == "delta.1" ~ "2019 - 2020",
+                          delta_year == "delta.2" ~ "2020 - 2021",
+                          delta_year == "delta.3" ~ "2021 - 2022",
+                          delta_year == "delta.4" ~ "2022 - 2023"))
+
+# Create dataframe for average algae cover in each time period
+algae_means <- algae_totals %>%
+  select(-total_cover) %>% 
+  pivot_wider(names_from = time_point, values_from = total_cover.prop) %>%
+  rename(year_0 = "2019",
+         year_1 = "2020",
+         year_2 = "2021",
+         year_3 = "2022",
+         year_4 = "2023") %>%
+  mutate(mean.1 = (year_1 + year_0)/2,
+         mean.2 = (year_2 + year_1)/2,
+         mean.3 = (year_3 + year_2)/2,
+         mean.4 = (year_4 + year_3)/2)
+
+algae_means <- algae_means %>%
+  select(-c(year_0, year_1, year_2, year_3, year_4)) %>%
+  pivot_longer(cols = c("mean.1", "mean.2", "mean.3", "mean.4"),
+               names_to = "period",
+               values_to = "algae.mean") %>%
+  drop_na() %>%
+  mutate(period = case_when(period == "mean.1" ~ "2019 - 2020",
+                          period == "mean.2" ~ "2020 - 2021",
+                          period == "mean.3" ~ "2021 - 2022",
+                          period == "mean.4" ~ "2022 - 2023"))
+
+algae_means.coral_change <- merge(coral_change.prop, algae_means)
+
+```
+
+```{r Stats for change in coral ~ algae cover}
+
+# Linear mixed effects model of annual proportional change in coral cover ~ mean algae cover in the same period; time period and plot identity as random effects
+coral.algae.glmm <- glmmTMB(delta_coral ~ algae.mean + (1|period) + (1|plot), 
+                    family = gaussian(link = "identity"),
+                    data = algae_means.coral_change)
+summary(coral.algae.glmm)
+
+# Get confidence interval for model
+confint(coral.algae.glmm)
+
+# Check residuals
+hist(residuals(coral.algae.glmm))
+car::qqPlot(residuals(coral.algae.glmm))
+
+# Plot model predictions and create dataframe 
+plot(ggpredict(coral.algae.glmm, terms = ~algae.mean))
+coral.algae.predictions <- as.data.frame(ggpredict(coral.algae.glmm, terms = ~algae.mean))
+
+```
+
+```{r Visualizaton of proportional coral change ~ mean algae cover in each period}
+
+# Algae multiplied by 100 to be expressed in percent cover
+algae_means.coral_change %>%
+  ggplot()+
+  geom_ribbon(data = coral.algae.predictions, 
+              aes(x = x*100, y = predicted, ymin =conf.low, ymax = conf.high), 
+              alpha =0.5,
+              fill = "#3B4F8E")+
+  geom_line(data = coral.algae.predictions, 
+            aes(x = x*100, y = predicted))+
+  geom_point(aes(x = algae.mean*100, y = delta_coral, shape = treatment),
+             alpha = 0.6,
+             size = 2)+
+  labs(x = expression(Mean~percent~cover~of~macroalgae~(t[N]~to~t[N+1])),
+       y = expression(Proportional~live~coral~change~(t[N]~to~t[N+1]))) +
+  scale_shape_manual(values = c(19,17),
+                     labels = c("Removal", "Retention"),
+                     name = "Skeletal treatment") +
+  theme_classic(base_size = 14)
+```
+
+## Recruit counts
+```{r  Load datasets}
+
+recruit_counts <- read_csv("data/Recruit-counts_2023.csv") %>% 
+  clean_names()
+
+plot_areas <- read_csv("data/Disturbance plot areas.csv") %>% 
+  clean_names()
+
+# Get plot size ranges for each treatment
+plot_areas.removal <- plot_areas %>% 
+  filter(treatment == "Removal")
+range(plot_areas.removal$plot_area)
+
+plot_areas.retention <- plot_areas %>% 
+  filter(treatment == "Retention")
+range(plot_areas.retention$plot_area)
+
+plot_areas.summary <- plot_areas %>% 
+  group_by(treatment) %>% 
+  summarize(mean = mean(plot_area),
+            SE = sd(plot_area)/sqrt(10))
+
+```
+
+```{r Recruit counts}
+## Total counts
+# Sum up recruits found in each treatment and on each substrate 
+recruit_counts.summary <- recruit_counts %>%
+  filter(substrate != "Rubble") %>% 
+  group_by(treatment, substrate) %>% 
+  reframe(total_count = n()) %>% 
+  drop_na()
+
+# Visualization of total recruit count ~ treatment and substrate type
+names(cal_palettes)
+
+ggplot(recruit_counts.summary, aes(x = treatment, y = total_count, fill = substrate)) +
+  geom_col(position = "dodge",
+           color = "black") +
+  scale_y_continuous(expand = c(0,0)) +
+  labs(x = "Skeleton treatment",
+       y = "Total recruit count") +
+  scale_fill_manual(values = c("#9BB1BB", "#E4DECE", "#0B4221"),
+                    name = "Substrate type") +
+  theme_classic()
+
+## Proportional counts
+# calculate proportions of recruits on each substrate type
+recruit_counts.summary$proportion <- recruit_counts.summary$total_count / c(rep(44,2),rep(54,2))
+
+# Visualization of total recruit count ~ treatment and substrate type
+ggplot(recruit_counts.summary, aes(x = treatment, y = proportion, fill = substrate)) +
+  geom_col(position = "dodge",
+           color = "black") +
+  scale_y_continuous(expand = c(0,0)) +
+  labs(x = "Skeleton treatment",
+       y = "Proportion of recruits") +
+  scale_fill_manual(values = c("#0B4221", "#9BB1BB"),
+                    name = "Substrate type") +
+  scale_y_continuous(limits = c(0,1),
+                     expand = c(0,0)) +
+  theme_classic()
+
+```
+
+```{r Stats for recruit counts ~ substrate and treatment}
+
+recruit_counts.contingency <- recruit_counts.summary %>% 
+  filter(substrate != "Rubble") %>% 
+  pivot_wider(names_from = "substrate",
+              values_from = "total_count") %>% 
+  select(-treatment)
+
+recruit.matrix <- as.matrix(recruit_counts.contingency)
+colnames(recruit.matrix) <- c("Dead coral", "Reef")
+rownames(recruit.matrix) <- c("Removal", "Retention")
+
+recruit.chi_sq <- chisq.test(recruit.matrix)
+
+```
+
+## Supplemental figures
+#### Dead coral time series
+```{r}
+# create dataframe of dead coral cover
+dead_coral <- regions_master %>%
+  filter(tag_lab_class_name == "Dead coral") %>% 
+  group_by(plot, treatment, tag_lab_date) %>% 
+  summarize(dead_coral.m_sq = sum(tag_lab_surf_area)*0.0001) %>% 
+  mutate(time_point = case_when(tag_lab_date == "8/1/19" ~ 2019,
+                                       tag_lab_date == "8/1/20" ~ 2020,
+                                       tag_lab_date == "8/1/21" ~ 2021,
+                                       tag_lab_date == "8/1/22" ~ 2022,
+                                       tag_lab_date == "8/1/23" ~ 2023))
+
+# Dead coral ranges
+removal.range <- dead_coral %>% 
+  filter(treatment == "Removal")
+range(removal.range$dead_coral.m_sq)
+
+retention.range <- dead_coral %>% 
+  filter(treatment == "Retention")
+range(retention.range$dead_coral.m_sq)
+
+# Create summary of dead coral
+dead_coral.summary <- dead_coral %>% 
+  group_by(treatment, time_point) %>% 
+  summarize(mean_surf.m_sq = mean(dead_coral.m_sq),
+            SE_surf.m_sq = sd(dead_coral.m_sq)/sqrt(n()))
+
+# time series of dead coral
+ggplot(dead_coral.summary, aes(x = time_point, y = mean_surf.m_sq, shape = treatment)) +
+   geom_point(data = dead_coral, aes(x = time_point, y = dead_coral.m_sq),
+             size = 1,
+             alpha = 0.5) +
+  geom_line(aes(group = treatment)) + 
+  geom_errorbar(aes(ymax = mean_surf.m_sq + SE_surf.m_sq,
+                    ymin = mean_surf.m_sq - SE_surf.m_sq),
+                width = 0) +
+  geom_point(size = 2.5) +
+  geom_point(size = 1.75,
+             color = "#CACFD0") +
+  labs(x = "Year",
+       y = Surface~area~(m^2)~of~dead~coral) +
+  scale_shape_manual(values = c(19,17),
+                     labels = c("Removal", "Retention"),
+                     name = "Skeleton treatment") +
+  theme_classic()
+
+# Just dead coral in 2023
+dead.2023 <- dead_coral %>% 
+  filter(time_point == "2023")
+
+dead.2023.summary <- dead.2023 %>% 
+  group_by(treatment) %>% 
+  summarize(mean_surf.m_sq = mean(dead_coral.m_sq),
+            SE_surf.m_sq = sd(dead_coral.m_sq)/sqrt(n()))
+
+# t-test of dead coral cover ~ treatment in 2023
+dead.t_test <- t.test(dead_coral.m_sq ~ treatment, data = dead.2023)
+
+# time series of dead coral in 2023 only
+ggplot(dead.2023.summary, aes(x = treatment, y = mean_surf.m_sq, shape = treatment)) +
+   geom_point(data = dead.2023, 
+             aes(x = treatment, y = dead_coral.m_sq),
+             size = 1.5,
+             alpha = 0.5) +
+  geom_errorbar(aes(ymax = mean_surf.m_sq + SE_surf.m_sq,
+                    ymin = mean_surf.m_sq - SE_surf.m_sq),
+                width = 0) +
+  geom_point(size = 3) +
+  geom_point(size = 2,
+             color = "#CACFD0") +
+  labs(x = "Skeleton treatment",
+       y = "Mean surf. area (m^2) of dead coral (± SE)") +
+  scale_shape_manual(values = c(19,17),
+                     #labels = c("Skeleton removal", "Skeletal retention"),
+                     name = "") +
+  scale_y_continuous(limits = c(0,5),
+                     expand = c(0,0)) +
+  coord_fixed(ratio = 1) +
+  theme_classic()
+```
+
+#### Time series of live coral raw values
+```{r}
+
+# Calculate means and SE's of raw surface area of live coral for each plot at each timepoint 
+live_coral.summary <- live_coral %>% 
+  group_by(treatment, time_point) %>% 
+  summarize(mean_surf = mean(live_coral.total_surf),
+            SE_surf = sd(live_coral.total_surf)/sqrt(n()),
+            mean_surf.m_sq = mean(m_sq),
+            SE_surf.m_sq = sd(m_sq)/sqrt(n()))
+
+# Time series of raw values (m^2)
+ggplot(live_coral.summary, aes(x = time_point, y = mean_surf.m_sq, shape = treatment)) +
+  geom_line(aes(group = treatment)) + 
+  geom_errorbar(aes(ymax = mean_surf.m_sq + SE_surf.m_sq,
+                    ymin = mean_surf.m_sq - SE_surf.m_sq),
+                width = 0) +
+   geom_point(data = live_coral, aes(x = time_point, y = m_sq),
+             size = 1,
+             alpha = 0.5) +
+  geom_point(size = 2.5) +
+  geom_point(size = 2,
+             color = "#CACFD0") +
+  labs(x = "Year",
+        y = Surface~area~(m^2)~of~live~coral) +
+  scale_shape_manual(values = c(19,17),
+                     labels = c("Removal", "Retention"),
+                     name = "Skeleton treatment") +
+  theme_classic()
+```
