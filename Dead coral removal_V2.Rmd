@@ -22,8 +22,6 @@ library(DHARMa)
 library(glmmTMB)
 library(ggeffects)
 library(calecopal)
-library(gganimate)
-library(gifski)
 library(emmeans)
 ```
 
@@ -32,13 +30,6 @@ library(emmeans)
 # Live and dead coral annotations
 regions_master <- read_csv("Data/Regions_master.csv") %>% 
   clean_names
-
-# Load raw data and calculate percent cover
-algae <- read_csv("Data/Algae point data.csv") %>% 
-  clean_names() %>% 
-  mutate(time_point = as.factor(time_point),
-         prop_cover = (points/total_points),
-         perc_cover = prop_cover*100)
 
 ```
 
@@ -142,7 +133,7 @@ live_coral.prop %>%
                      labels = c("Removal", "Retention"),
                      name = "Skeleton treatment") +
   #coord_fixed(ratio = 3) +
-  theme_classic(base_size = 12)
+  theme_classic(base_size = 14)
 
 ```
 
@@ -182,11 +173,19 @@ ggplot(live_coral.2023.summary, aes(x = treatment, y = mean_cover, shape = treat
 #### Percent cover of macroalgae over time
 ```{r Data wrangling for macroalgae cover}
 
+# Load raw data and calculate percent cover
+algae <- read_csv("Data/Algae point data.csv") %>% 
+  clean_names() %>% 
+  mutate(time_point = as.factor(time_point),
+         prop_cover = (points/total_points),
+         perc_cover = prop_cover*100)
+
 # Create summary table for total algae cover in each treatment/time point 
 algae_totals <- algae %>% 
   group_by(plot, treatment, time_point) %>% 
   summarize(total_cover.prop = sum(prop_cover),
             total_cover = sum(perc_cover))
+
 ```
 
 ```{r Stats for macroalgae time series}
@@ -220,13 +219,6 @@ pairs(emmeans.algae, adjust = "bonferronni", type = "response")
 ```
 
 ```{r Visualization for algae time series}
-# Calculate mean algae cover in each treatment for 2019
-algae_totals %>% 
-  filter(time_point == "2019") %>% 
-  group_by(treatment) %>% 
-  summarize(mean_cover.prop = mean(total_cover.prop),
-            SE = sd(total_cover.prop)/sqrt(n()),
-            CI = SE*2)
 
 # Add values for first time point back into dataframe
 predictions.algae <- predictions.algae %>% 
@@ -259,7 +251,7 @@ algae_totals %>%
                      labels = c("Removal", "Retention"),
                      name = "Skeletal treatment") +
   #coord_fixed(ratio = 3) +
-  theme_classic(base_size = 12)
+  theme_classic(base_size = 14)
 
 ```
 
@@ -305,7 +297,7 @@ algae_taxa.summary <- algae %>%
                                 time_point == 3 ~ 2021,
                                 time_point == 4 ~ 2022,
                                 time_point == 5 ~ 2023)) %>% 
-  group_by(algal_taxa, time_point) %>% 
+  group_by(treatment, algal_taxa, time_point) %>% 
   summarize(mean_cover.taxa = mean(perc_cover)) %>% 
   mutate(algal_taxa = as.factor(algal_taxa))
  
@@ -314,14 +306,14 @@ algae_taxa.summary$algal_taxa <- factor(algae_taxa.summary$algal_taxa, levels = 
 ggplot(algae_taxa.summary, aes(x = time_point, y = mean_cover.taxa, fill = algal_taxa)) +
   geom_area(linewidth = 0.5, 
             colour="black") +
-  #facet_wrap(~treatment) +
+  facet_wrap(~treatment) +
   labs(x = "Year",
        y = "Percent cover of macroalgae") +
   scale_fill_manual(values = c("#44781E", "#2C3B75", "#A1B654", "#565052"),
                     name = 'Algal taxa') +
   theme_classic(base_size = 14)
 
-## Stacked area chart with proportions of algae rather than total percent cover
+## Stacked area chart with proportions of algae rather than total percent cover, not separated by treatment
 algae_prop <- algae %>%
   group_by(plot, algal_taxa, time_point) %>%
   summarize(taxa_cover = sum(perc_cover))
@@ -345,13 +337,233 @@ algae_prop.summary$algal_taxa <- factor(algae_prop.summary$algal_taxa, levels = 
 ggplot(algae_prop.summary, aes(x = time_point, y = mean_prop, fill = algal_taxa)) +
   geom_area(linewidth = 0.5,
             colour="black") +
-  #facet_wrap(~treatment) +
   labs(x = "Year",
        y = "Proportion of macroalgal cover") +
   scale_fill_manual(values = c("#44781E", "#2C3B75", "#A1B654", "#565052"),
-                    name = 'Algal taxa') +
+                    name = 'Macroalgal taxa',
+                    labels = c(expression(italic("Lobophora")), 
+                               expression(italic("Asparagopsis")),
+                               expression(italic("Halimeda")), 
+                               expression(italic("Turbinaria")))) +
   theme_classic(base_size = 14)
 
+
+```
+
+#### Algae associations to dead coral
+```{r Data wrangling and pie charts}
+# Create dataframe for proportions of points inside and outside of dead coral regions
+algae_associations <- algae %>% 
+  drop_na() %>% 
+  group_by(algal_taxa) %>% 
+  summarize(total_points = sum(points),
+            total_points.in_dc = sum(points_within_dead_coral)) %>% 
+  mutate(inside = total_points.in_dc/total_points,
+         outside = 1 - inside) %>% 
+  pivot_longer(cols = c(inside, outside),
+               values_to = 'proportion',
+               names_to = 'position')
+
+# Pie charts
+# Lobophora
+lobophora <- algae_associations %>% 
+  filter(algal_taxa == "Lobophora") %>% 
+  select(position, proportion)
+
+ggplot(lobophora, aes(x = "", y = proportion, fill = position)) +
+  geom_col_pattern(width=1, 
+                   color= "#CACFD0",
+                   pattern_colour = NA,
+                   pattern_fill = "#CACFD0",
+                   aes(pattern = position)) +
+  coord_polar("y", start=0) +
+  scale_pattern_discrete(choices = c("stripe", "none")) +
+  scale_fill_manual(values = c("#44781E", "#44781E"),
+                    name = "",
+                    labels = c("Inside", "Outside")) +
+  #facet_wrap(~treatment) +
+  theme_void()
+
+# Asparagopsis
+asparagopsis <- algae_associations %>% 
+  filter(algal_taxa == "Asparagopsis") %>% 
+  select(position, proportion)
+
+ggplot(asparagopsis, aes(x = "", y = proportion, fill = position)) +
+  geom_col_pattern(width=1, 
+                   color= "#CACFD0",
+                   pattern_colour = NA,
+                   pattern_fill = "#CACFD0",
+                   aes(pattern = position)) +
+  coord_polar("y", start=0) +
+  scale_pattern_discrete(choices = c("stripe", "none")) +
+  scale_fill_manual(values = c("#2C3B75", "#2C3B75"),
+                    name = "",
+                    labels = c("Inside", "Outside")) +
+  #facet_wrap(~treatment) +
+  theme_void()
+
+# Halimeda
+halimeda <- algae_associations %>% 
+  filter(algal_taxa == "Halimeda") %>% 
+  select(position, proportion)
+
+ggplot(halimeda, aes(x = "", y = proportion, fill = position)) +
+  geom_col_pattern(width=1, 
+                   color= "#CACFD0",
+                   pattern_colour = NA,
+                   pattern_fill = "#CACFD0",
+                   aes(pattern = position)) +
+  coord_polar("y", start=0) +
+  scale_pattern_discrete(choices = c("stripe", "none")) +
+  scale_fill_manual(values = c("#A1B654", "#A1B654"),
+                    name = "",
+                    labels = c("Inside", "Outside")) +
+  #facet_wrap(~treatment) +
+  theme_void()
+
+# Turbinaria
+turbinaria <- algae_associations %>% 
+  filter(algal_taxa == "Turbinaria") %>% 
+  select(position, proportion)
+
+ggplot(turbinaria, aes(x = "", y = proportion, fill = position)) +
+  geom_col_pattern(width=1, 
+                   color= "#CACFD0",
+                   pattern_colour = NA,
+                   pattern_fill = "#CACFD0",
+                   aes(pattern = position)) +
+  coord_polar("y", start=0) +
+  scale_pattern_discrete(choices = c("stripe", "none")) +
+  scale_fill_manual(values = c("#565052", "#565052"),
+                    name = "",
+                    labels = c("Inside", "Outside")) +
+  #facet_wrap(~treatment) +
+  theme_void()
+
+# to get blank legend
+ggplot(asparagopsis, aes(x = "", y = proportion, fill = position)) +
+  geom_col_pattern(width=1, 
+                   color= "#CACFD0",
+                   pattern_colour = NA,
+                   pattern_fill = "#CACFD0",
+                   aes(pattern = position)) +
+  coord_polar("y", start=0) +
+  scale_pattern_discrete(choices = c("stripe", "none")) +
+  scale_fill_manual(values = c("black", "black"),
+                    name = "Location of points",
+                    labels = c("On dead skeletons", "On reef")) +
+  theme_void()
+
+```
+
+```{r Stats for algae associations}
+
+## Treatments combined
+algae_contingency <- algae %>% 
+  drop_na() %>%
+  group_by(algal_taxa) %>% 
+  summarize(total_points = sum(points),
+            inside = sum(points_within_dead_coral),
+            outside = total_points - inside) %>% 
+  select(-total_points, -algal_taxa)
+
+algae_matrix <- as.matrix(algae_contingency, ncol = 2, nrow = 4)
+rownames(algae_matrix) <- c("Asparagopsis", "Halimeda", "Lobophora", "Turbinaria")
+colnames(algae_matrix) <- c("Inside", "Outside")
+
+chi_sq.algae <- chisq.test(algae_matrix)
+chi_sq.algae$expected
+chi_sq.algae$observed
+chi_sq.algae.post_hoc <- chisq.posthoc.test(algae_matrix)
+
+
+## Separated by treatment
+# Contingency table for algae associations: removal plots
+algae_contingency.removal <- algae %>% 
+  drop_na() %>% 
+  filter(treatment == "Removal") %>% 
+  group_by(algal_taxa) %>% 
+  summarize(total_points = sum(points),
+            inside = sum(points_within_dead_coral),
+            outside = total_points - inside) %>% 
+  select(-total_points, -algal_taxa)
+
+algae_matrix.removal <- as.matrix(algae_contingency.removal, ncol = 2, nrow = 4)
+rownames(algae_matrix.removal) <- c("Asparagopsis", "Halimeda", "Lobophora", "Turbinaria")
+colnames(algae_matrix.removal) <- c("Inside", "Outside")
+
+chi_sq.algae.removal <- chisq.test(algae_matrix.removal)
+chi_sq.algae.removal$expected
+chi_sq.algae.removal$observed
+chi_sq.algae..removal.post_hoc <- chisq.posthoc.test(algae_matrix.removal) # All p-values are zero... this seems to be real, just lots of data so departures from expected values are very strong and clear
+
+# Contingency table for algae associations: retention plots
+algae_contingency.retention <- algae %>% 
+  drop_na() %>% 
+  filter(treatment == "Retention") %>% 
+  group_by(algal_taxa) %>% 
+  summarize(total_points = sum(points),
+            inside = sum(points_within_dead_coral),
+            outside = total_points - inside) %>% 
+  select(-total_points, -algal_taxa)
+
+algae_matrix.retention <- as.matrix(algae_contingency.retention, ncol = 2, nrow = 4)
+rownames(algae_matrix.retention) <- c("Asparagopsis", "Halimeda", "Lobophora", "Turbinaria")
+colnames(algae_matrix.retention) <- c("Inside", "Outside")
+
+chi_sq.algae.retention <- chisq.test(algae_matrix.retention)
+chi_sq.algae.retention$expected
+chi_sq.algae.retention$observed
+chi_sq.algae..retention.post_hoc <- chisq.posthoc.test(algae_matrix.retention)
+
+
+##### Algae associations, plot averages
+algae_associations.plots <- algae %>% 
+  drop_na() %>% 
+  group_by(plot, treatment, algal_taxa) %>% 
+  summarize(total_points = sum(points),
+            total_points.in_dc = sum(points_within_dead_coral)) %>% 
+  mutate(inside = total_points.in_dc/total_points,
+         outside = 1 - inside) %>% 
+  pivot_longer(cols = c(inside, outside),
+               values_to = 'proportion',
+               names_to = 'position') %>% 
+  drop_na()
+
+algae_associations.plots.summary <- algae_associations.plots %>% 
+  group_by(treatment, algal_taxa, position) %>% 
+  summarize(mean_prop = mean(proportion),
+            se_prop = sd(proportion)/sqrt(n()))
+
+ggplot(algae_associations.plots.summary, aes(x = algal_taxa, y = mean_prop, fill = position)) +
+  geom_col(position = position_dodge(),
+           color = "black") +
+  geom_errorbar(aes(ymax = mean_prop + se_prop,
+                    ymin = mean_prop - se_prop,
+                    width = 0),
+                width = 0.9,
+                position = position_dodge()) +
+  facet_wrap(~treatment) +
+  theme_classic()
+
+```
+
+```{r}
+# Mixed effects model of algae associations
+algae_associations.glmm <- algae_associations %>% 
+  select(-position, -proportion)
+
+# Create the two-column response variable
+algae_associations.glmm$response <- cbind(algae_associations.glmm$total_points.in_dc, algae_associations.glmm$total_points - algae_associations.glmm$total_points.in_dc)
+
+# Fit the mixed-effects model
+associations.glmm <- glmmTMB(response ~ algal_taxa*treatment, 
+                 family = binomial(link = "logit"), 
+                 data = algae_associations.glmm)
+
+# Model summary
+summary(associations.glmm)
 
 ```
 
@@ -417,7 +629,7 @@ algae.dead_coral.short %>%
   geom_point(aes(x = dead_coral.m_sq, y = total_cover, shape = treatment),
              alpha = 0.6,
              size = 2)+
-  labs(x = "Dead coral (m^2)",
+  labs(x = Dead~coral~(m^2),
        y = "Macroalgae % cover") +
   scale_shape_manual(values = c(19,17),
                      labels = c("Removal", "Retention"),
@@ -481,6 +693,8 @@ algae_means <- algae_means %>%
                           period == "mean.4" ~ "2022 - 2023"))
 
 algae_means.coral_change <- merge(coral_change.prop, algae_means)
+algae_means.coral_change <- algae_means.coral_change %>% 
+  mutate(delta_coral.trans = delta_coral*(-1))
 
 ```
 
@@ -519,8 +733,8 @@ algae_means.coral_change %>%
   geom_point(aes(x = algae.mean*100, y = delta_coral, shape = treatment),
              alpha = 0.6,
              size = 2)+
-  labs(x = expression(Mean~percent~cover~of~macroalgae~(t[N]~to~t[N+1])),
-       y = expression(Proportional~live~coral~change~(t[N]~to~t[N+1]))) +
+  labs(x = "Macroalgae % cover",
+       y = "Proportional change in live coral") +
   scale_shape_manual(values = c(19,17),
                      labels = c("Removal", "Retention"),
                      name = "Skeletal treatment") +
@@ -550,13 +764,16 @@ plot_areas.summary <- plot_areas %>%
   summarize(mean = mean(plot_area),
             SE = sd(plot_area)/sqrt(10))
 
+# T-test of plot area~treamtent
+plot_area.t_test <- t.test(plot_area ~ treatment, data = plot_areas)
+
 ```
 
 ```{r Recruit counts}
 ## Total counts
 # Sum up recruits found in each treatment and on each substrate 
 recruit_counts.summary <- recruit_counts %>%
-  filter(substrate != "Rubble") %>% 
+  #filter(substrate != "Rubble") %>% 
   group_by(treatment, substrate) %>% 
   reframe(total_count = n()) %>% 
   drop_na()
@@ -572,7 +789,7 @@ ggplot(recruit_counts.summary, aes(x = treatment, y = total_count, fill = substr
        y = "Total recruit count") +
   scale_fill_manual(values = c("#9BB1BB", "#E4DECE", "#0B4221"),
                     name = "Substrate type") +
-  theme_classic()
+  theme_classic(base_size = 14)
 
 ## Proportional counts
 # calculate proportions of recruits on each substrate type
@@ -585,11 +802,11 @@ ggplot(recruit_counts.summary, aes(x = treatment, y = proportion, fill = substra
   scale_y_continuous(expand = c(0,0)) +
   labs(x = "Skeleton treatment",
        y = "Proportion of recruits") +
-  scale_fill_manual(values = c("#0B4221", "#9BB1BB"),
+  scale_fill_manual(values = c("#9BB1BB", "#E4DECE", "#0B4221"),
                     name = "Substrate type") +
   scale_y_continuous(limits = c(0,1),
                      expand = c(0,0)) +
-  theme_classic()
+  theme_classic(base_size = 14)
 
 ```
 
@@ -682,14 +899,14 @@ ggplot(dead.2023.summary, aes(x = treatment, y = mean_surf.m_sq, shape = treatme
   geom_point(size = 2,
              color = "#CACFD0") +
   labs(x = "Skeleton treatment",
-       y = "Mean surf. area (m^2) of dead coral (± SE)") +
+       y = Surface~area~(m^2)~of~dead~coral) +
   scale_shape_manual(values = c(19,17),
                      #labels = c("Skeleton removal", "Skeletal retention"),
                      name = "") +
   scale_y_continuous(limits = c(0,5),
                      expand = c(0,0)) +
   coord_fixed(ratio = 1) +
-  theme_classic()
+  theme_classic(base_size = 14)
 ```
 
 #### Time series of live coral raw values
