@@ -4,7 +4,7 @@ Code and datafiles for experiment involving the effects of removing dead coral o
 
 In the "Data" folder, there are three main data files that were used for analyses in the above mentioned manuscript:
 - [Regions_master.csv](https://github.com/kkopecky711/Dead-coral-removal-experiment/blob/main/Data/Regions_master.csv) is a data file generated from the image segmentation software, [TagLab](https://github.com/cnr-isti-vclab/TagLab), that includes vector data (perimeter, planar area, 3D surface area, and pixel coordinates for the centroids of each object) of live and dead branching coral colonies measured within photomoasics of ~4m^2 experimental plots that either had dead coral skeletons initially removed or left in place after the coral bleahcing event. This data file contains these vetor data for coral colonies in 20 experimental plots in each of four years from 2019-2023.
-![image][Taglab screenshot.pdf]
+![image]![Screen Shot 2023-02-21 at 5 25 53 PM](https://github.com/user-attachments/assets/adbcf19c-7a55-47db-8f3c-eb4ce506966a)
 
 - [Algae point data.csv](https://github.com/kkopecky711/Dead-coral-removal-experiment/blob/main/Data/Algae%20point%20data.csv)is a datafile also generated from TagLab with point count data for various taxa of macroalgae. For each plot in each year, a grid of points was ovelaid on the photomosaic, and each point was classified as either a type of macroalgae or 'other' (because corals were measured using image segmentation described above). Further, we recorded when points fell within regions annotated (segmented) as dead coral to evaluate the degree to which macroalgae grew on dead coral as a substrate.  
 
