@@ -661,17 +661,17 @@ coral_change.prop <- live_coral %>%
          delta.3.raw = year_3 - year_2,
          delta.4.raw = year_4 - year_3)
 
-# Proportional coral change
-coral_change.prop <- coral_change.prop %>%
-  select(-c(year_0, year_1, year_2, year_3, year_4)) %>%
-  pivot_longer(cols = c("delta.1", "delta.2", "delta.3", "delta.4"),
-               names_to = "delta_year",
-               values_to = "delta_coral") %>%
-  drop_na() %>%
-  mutate(period = case_when(delta_year == "delta.1" ~ "2019 - 2020",
-                          delta_year == "delta.2" ~ "2020 - 2021",
-                          delta_year == "delta.3" ~ "2021 - 2022",
-                          delta_year == "delta.4" ~ "2022 - 2023"))
+# # Proportional coral change
+# coral_change.prop <- coral_change.prop %>%
+#   select(-c(year_0, year_1, year_2, year_3, year_4)) %>%
+#   pivot_longer(cols = c("delta.1", "delta.2", "delta.3", "delta.4"),
+#                names_to = "delta_year",
+#                values_to = "delta_coral") %>%
+#   drop_na() %>%
+#   mutate(period = case_when(delta_year == "delta.1" ~ "2019 - 2020",
+#                           delta_year == "delta.2" ~ "2020 - 2021",
+#                           delta_year == "delta.3" ~ "2021 - 2022",
+#                           delta_year == "delta.4" ~ "2022 - 2023"))
 
 # Raw coral change
 coral_change.raw <- coral_change.prop %>%
@@ -685,123 +685,193 @@ coral_change.raw <- coral_change.prop %>%
                           delta_year == "delta.3.raw" ~ "2021 - 2022",
                           delta_year == "delta.4.raw" ~ "2022 - 2023"))
 
-# Create dataframe for average algae cover in each time period
-algae_means <- algae_totals %>%
-  select(-total_cover) %>% 
-  pivot_wider(names_from = time_point, values_from = total_cover.prop) %>%
-  rename(year_0 = "2019",
-         year_1 = "2020",
-         year_2 = "2021",
-         year_3 = "2022",
-         year_4 = "2023") %>%
-  mutate(mean.1 = (year_1 + year_0)/2,
-         mean.2 = (year_2 + year_1)/2,
-         mean.3 = (year_3 + year_2)/2,
-         mean.4 = (year_4 + year_3)/2)
+# # Create dataframe for average algae cover in each time period
+# algae_means <- algae_totals %>%
+#   select(-total_cover) %>% 
+#   pivot_wider(names_from = time_point, values_from = total_cover.prop) %>%
+#   rename(year_0 = "2019",
+#          year_1 = "2020",
+#          year_2 = "2021",
+#          year_3 = "2022",
+#          year_4 = "2023") %>%
+#   mutate(mean.1 = (year_1 + year_0)/2,
+#          mean.2 = (year_2 + year_1)/2,
+#          mean.3 = (year_3 + year_2)/2,
+#          mean.4 = (year_4 + year_3)/2)
+# 
+# algae_means <- algae_means %>%
+#   select(-c(year_0, year_1, year_2, year_3, year_4)) %>%
+#   pivot_longer(cols = c("mean.1", "mean.2", "mean.3", "mean.4"),
+#                names_to = "period",
+#                values_to = "algae.mean") %>%
+#   drop_na() %>%
+#   mutate(period = case_when(period == "mean.1" ~ "2019 - 2020",
+#                           period == "mean.2" ~ "2020 - 2021",
+#                           period == "mean.3" ~ "2021 - 2022",
+#                           period == "mean.4" ~ "2022 - 2023"))
 
-algae_means <- algae_means %>%
-  select(-c(year_0, year_1, year_2, year_3, year_4)) %>%
-  pivot_longer(cols = c("mean.1", "mean.2", "mean.3", "mean.4"),
-               names_to = "period",
-               values_to = "algae.mean") %>%
-  drop_na() %>%
-  mutate(period = case_when(period == "mean.1" ~ "2019 - 2020",
-                          period == "mean.2" ~ "2020 - 2021",
-                          period == "mean.3" ~ "2021 - 2022",
-                          period == "mean.4" ~ "2022 - 2023"))
+# algae_cover <- algae_means %>%
+#   select(year_1, year_2, year_3, year_4) %>%
+#   pivot_longer(cols = c("year_1", "year_2", "year_3", "year_4"),
+#                names_to = "year",
+#                values_to = "algae.cover") %>%
+#   drop_na() %>%
+#   mutate(year = case_when(year == "year_1" ~ "2020",
+#                           year == "year_2" ~ "2021",
+#                           year == "year_3" ~ "2022",
+#                           year == "year_4" ~ "2023"))
 
-# Proportional coral change
-algae_means.coral_change <- merge(coral_change.prop, algae_means)
-algae_means.coral_change <- algae_means.coral_change %>% 
-  mutate(delta_coral.trans = delta_coral*(-1))
+# # Proportional coral change
+# algae_means.coral_change <- merge(coral_change.prop, algae_means)
+# algae_means.coral_change <- algae_means.coral_change %>% 
+#   mutate(delta_coral.trans = delta_coral*(-1))
+# 
+# # Raw coral change
+# algae_means.coral_change.raw <- merge(coral_change.raw, algae_means)
+# algae_means.coral_change.raw <- algae_means.coral_change.raw %>% 
+#   mutate(delta_coral.trans = delta_coral.raw*(-1))
 
-# Raw coral change
-algae_means.coral_change.raw <- merge(coral_change.raw, algae_means)
-algae_means.coral_change.raw <- algae_means.coral_change.raw %>% 
-  mutate(delta_coral.trans = delta_coral.raw*(-1))
+# Raw coral change, raw algae cover
+algae_totals.coral_change.raw <- algae_totals %>% 
+  filter(time_point != "2019") %>% 
+  mutate(period = case_when(time_point == "2020" ~ "2019 - 2020",
+                          time_point == "2021" ~ "2020 - 2021",
+                          time_point == "2022" ~ "2021 - 2022",
+                          time_point == "2023" ~ "2022 - 2023")) %>% 
+  select(-time_point, -total_cover)
+
+coral_change.raw <- coral_change.raw %>% 
+  select(-c(3:7))
+
+algae_totals.coral_change.raw <- merge(coral_change.raw, algae_totals.coral_change.raw)
+# algae_totals.coral_change.raw <- algae_means.coral_change.raw %>% 
+#   mutate(delta_coral.trans = delta_coral.raw*(-1))
 
 ```
 
 ```{r Stats for change in coral ~ algae cover}
 
-# Linear mixed effects model of annual proportional change in coral cover ~ mean algae cover in the same period; time period and plot identity as random effects
-coral.algae.glmm <- glmmTMB(delta_coral ~ algae.mean + (1|period) + (1|plot), 
-                    family = gaussian(link = "identity"),
-                    data = algae_means.coral_change)
-summary(coral.algae.glmm)
-
-# Get confidence interval for model
-confint(coral.algae.glmm)
-
-# Check residuals
-hist(residuals(coral.algae.glmm))
-car::qqPlot(residuals(coral.algae.glmm))
-
-# Plot model predictions and create dataframe 
-plot(ggpredict(coral.algae.glmm, terms = ~algae.mean))
-coral.algae.predictions <- as.data.frame(ggpredict(coral.algae.glmm, terms = ~algae.mean))
+# # Linear mixed effects model of annual proportional change in coral cover ~ mean algae cover in the same period; time period and plot identity as random effects
+# coral.algae.glmm <- glmmTMB(delta_coral ~ algae.mean + (1|period) + (1|plot), 
+#                     family = gaussian(link = "identity"),
+#                     data = algae_means.coral_change)
+# summary(coral.algae.glmm)
+# 
+# # Get confidence interval for model
+# confint(coral.algae.glmm)
+# 
+# # Check residuals
+# hist(residuals(coral.algae.glmm))
+# car::qqPlot(residuals(coral.algae.glmm))
+# 
+# # Plot model predictions and create dataframe 
+# plot(ggpredict(coral.algae.glmm, terms = ~algae.mean))
+# coral.algae.predictions <- as.data.frame(ggpredict(coral.algae.glmm, terms = ~algae.mean))
 
 ```
 
 ```{r Visualizaton of proportional coral change ~ mean algae cover in each period}
 
-# Algae multiplied by 100 to be expressed in percent cover
-algae_means.coral_change %>%
-  ggplot()+
-  geom_ribbon(data = coral.algae.predictions, 
-              aes(x = x*100, y = predicted, ymin =conf.low, ymax = conf.high),
-              alpha =0.5,
-              fill = "#3B4F8E")+
-  geom_line(data = coral.algae.predictions, 
-            aes(x = x*100, y = predicted))+
-  geom_point(aes(x = algae.mean*100, y = delta_coral, shape = treatment),
-             alpha = 0.6,
-             size = 2)+
-  labs(x = "Annual % cover of macroalgae",
-       y = "Proportional change in live coral") +
-  scale_shape_manual(values = c(19,17),
-                     labels = c("Removal", "Retention"),
-                     name = "Skeletal treatment") +
-  theme_classic(base_size = 14)
-
-# Algae and coral multiplied by 100 to be expressed in percent cover
-algae_means.coral_change %>%
-  ggplot()+
-  geom_ribbon(data = coral.algae.predictions, 
-              aes(x = x*100, y = predicted*100, ymin =conf.low*100, ymax = conf.high*100), 
-              alpha =0.5,
-              fill = "#3B4F8E")+
-  geom_line(data = coral.algae.predictions, 
-            aes(x = x*100, y = predicted*100))+
-  geom_point(aes(x = algae.mean*100, y = delta_coral*100, shape = treatment),
-             alpha = 0.6,
-             size = 2)+
-  labs(x = "% cover of macroalgae",
-       y = "Annual % change in live coral") +
-  scale_shape_manual(values = c(19,17),
-                     labels = c("Removal", "Retention"),
-                     name = "Skeleton treatment") +
-  theme_classic(base_size = 14)
+# # Algae multiplied by 100 to be expressed in percent cover
+# algae_means.coral_change %>%
+#   ggplot()+
+#   geom_ribbon(data = coral.algae.predictions, 
+#               aes(x = x*100, y = predicted, ymin =conf.low, ymax = conf.high),
+#               alpha =0.5,
+#               fill = "#3B4F8E")+
+#   geom_line(data = coral.algae.predictions, 
+#             aes(x = x*100, y = predicted))+
+#   geom_point(aes(x = algae.mean*100, y = delta_coral, shape = treatment),
+#              alpha = 0.6,
+#              size = 2)+
+#   labs(x = "Annual % cover of macroalgae",
+#        y = "Proportional change in live coral") +
+#   scale_shape_manual(values = c(19,17),
+#                      labels = c("Removal", "Retention"),
+#                      name = "Skeletal treatment") +
+#   theme_classic(base_size = 14)
+# 
+# # Algae and coral multiplied by 100 to be expressed in percent cover
+# algae_means.coral_change %>%
+#   ggplot()+
+#   geom_ribbon(data = coral.algae.predictions, 
+#               aes(x = x*100, y = predicted*100, ymin =conf.low*100, ymax = conf.high*100), 
+#               alpha =0.5,
+#               fill = "#3B4F8E")+
+#   geom_line(data = coral.algae.predictions, 
+#             aes(x = x*100, y = predicted*100))+
+#   geom_point(aes(x = algae.mean*100, y = delta_coral*100, shape = treatment),
+#              alpha = 0.6,
+#              size = 2)+
+#   labs(x = "% cover of macroalgae",
+#        y = "Annual % change in live coral") +
+#   scale_shape_manual(values = c(19,17),
+#                      labels = c("Removal", "Retention"),
+#                      name = "Skeleton treatment") +
+#   theme_classic(base_size = 14)
 ```
 
 ```{r Stats for raw change in coral ~ algae cover}
+# 
+# # Linear mixed effects model of annual proportional change in coral cover ~ mean algae cover in the same period; time period and plot identity as random effects
+# coral.algae.glmm.raw <- glmmTMB(delta_coral.raw ~ algae.mean + (1|period) + (1|plot), 
+#                     family = gaussian(link = "identity"),
+#                     data = algae_means.coral_change.raw)
+# summary(coral.algae.glmm.raw)
+# 
+# # Get confidence interval for model
+# confint(coral.algae.glmm.raw)
+# 
+# # Check residuals
+# hist(residuals(coral.algae.glmm.raw))
+# car::qqPlot(residuals(coral.algae.glmm.raw))
+# 
+# # Plot model predictions and create dataframe 
+# plot(ggpredict(coral.algae.glmm.raw, terms = ~algae.mean))
+# coral.algae.predictions.raw <- as.data.frame(ggpredict(coral.algae.glmm.raw, terms = ~algae.mean))
 
-# Linear mixed effects model of annual proportional change in coral cover ~ mean algae cover in the same period; time period and plot identity as random effects
-coral.algae.glmm.raw <- glmmTMB(delta_coral.raw ~ algae.mean + (1|period) + (1|plot), 
+```
+
+```{r Visualizaton of raw coral change ~ mean algae cover in each period}
+
+# # Algae multiplied by 100 to be expressed in percent cover
+# 
+# ggplot(coral.algae.predictions.raw, aes(x = x*100, y = predicted))+
+#   geom_ribbon(data = coral.algae.predictions.raw,
+#               aes(x = x*100, y = predicted, ymin =conf.low, ymax = conf.high),
+#               alpha =0.5,
+#               fill = "#3B4F8E")+
+#   geom_line()+
+#   geom_point(data = algae_means.coral_change.raw,
+#              aes(x = algae.mean*100, y = delta_coral.raw, shape = treatment),
+#              alpha = 0.6,
+#              size = 2)+
+#   labs(x = "% cover of macroalgae",
+#        y = Change~"in"~live~coral~surf.~area~(m^2/yr)) +
+#   scale_shape_manual(values = c(19,17),
+#                      labels = c("Removal", "Retention"),
+#                      name = "Skeletal treatment") +
+#   theme_classic(base_size = 14)
+```
+
+```{r Stats for raw change in coral ~ raw algae cover}
+
+# Linear mixed effects model of raw change in surface area of live coral ~ macroalgae cover (as a proportion) in a given year; year and plot ID as random effects
+coral.algae.glmm.raw.2 <- glmmTMB(delta_coral.raw ~ total_cover.prop + (1|period) + (1|plot), 
                     family = gaussian(link = "identity"),
-                    data = algae_means.coral_change.raw)
-summary(coral.algae.glmm.raw)
+                    data = algae_totals.coral_change.raw)
+summary(coral.algae.glmm.raw.2)
 
 # Get confidence interval for model
-confint(coral.algae.glmm.raw)
+confint(coral.algae.glmm.raw.2)
 
 # Check residuals
-hist(residuals(coral.algae.glmm.raw))
-car::qqPlot(residuals(coral.algae.glmm.raw))
+hist(residuals(coral.algae.glmm.raw.2))
+car::qqPlot(residuals(coral.algae.glmm.raw.2))
 
 # Plot model predictions and create dataframe 
-plot(ggpredict(coral.algae.glmm.raw, terms = ~algae.mean))
-coral.algae.predictions.raw <- as.data.frame(ggpredict(coral.algae.glmm.raw, terms = ~algae.mean))
+plot(ggpredict(coral.algae.glmm.raw.2, terms = ~total_cover.prop))
+coral.algae.predictions.raw.2 <- as.data.frame(ggpredict(coral.algae.glmm.raw.2, terms = ~total_cover.prop))
 
 ```
 
@@ -809,18 +879,18 @@ coral.algae.predictions.raw <- as.data.frame(ggpredict(coral.algae.glmm.raw, ter
 
 # Algae multiplied by 100 to be expressed in percent cover
 
-ggplot(coral.algae.predictions.raw, aes(x = x*100, y = predicted))+
-  geom_ribbon(data = coral.algae.predictions.raw,
+ggplot(coral.algae.predictions.raw.2, aes(x = x*100, y = predicted))+
+  geom_ribbon(data = coral.algae.predictions.raw.2,
               aes(x = x*100, y = predicted, ymin =conf.low, ymax = conf.high),
               alpha =0.5,
               fill = "#3B4F8E")+
   geom_line()+
-  geom_point(data = algae_means.coral_change.raw,
-             aes(x = algae.mean*100, y = delta_coral.raw, shape = treatment),
+  geom_point(data = algae_totals.coral_change.raw,
+             aes(x = total_cover.prop*100, y = delta_coral.raw, shape = treatment),
              alpha = 0.6,
              size = 2)+
   labs(x = "% cover of macroalgae",
-       y = Live~coral~change~(m^2/yr)) +
+       y = Change~"in"~live~coral~surf.~area~(m^2/yr)) +
   scale_shape_manual(values = c(19,17),
                      labels = c("Removal", "Retention"),
                      name = "Skeletal treatment") +
@@ -986,25 +1056,32 @@ ggplot(recruit_density, aes(x = substrate, y = density, color = treatment, group
 Anova(glm_model, type = "III") # From the car package
 
 # GLMM method
+hist(log(recruit_density$density))
+
 density.glmm <- glmmTMB(log(density) ~ substrate*treatment + (1|plot_number), 
                  data = recruit_density, 
                  family = gaussian)
 summary(density.glmm)
 
+density.glmm.2 <- glmmTMB(density ~ substrate*treatment + (1|plot_number), 
+                 data = recruit_density, 
+                 family = gaussian(link = "log"))
+summary(density.glmm.2)
+
 # Posthoc test for comparing substrates within a treatment
-emmeans(density.glmm, pairwise ~ substrate | treatment, adjust = "tukey")
+emmeans(density.glmm.2, pairwise ~ substrate | treatment, adjust = "tukey")
 
 # Posthoc test for comparing treatments within a substrate
-emmeans(density.glmm, pairwise ~ treatment | substrate, adjust = "tukey")
+emmeans(density.glmm.2, pairwise ~ treatment | substrate, adjust = "tukey")
 
 
 # Check residuals
-hist(residuals(density.glmm))
-car::qqPlot(residuals(density.glmm))
+hist(residuals(density.glmm.2))
+car::qqPlot(residuals(density.glmm.2))
 
 # Plot model predictions and create dataframe 
-plot(ggpredict(density.glmm, terms = ~substrate*treatment))
-density.predictions <- as.data.frame(ggpredict(density.glmm, terms = ~substrate*treatment))
+plot(ggpredict(density.glmm.2, terms = ~substrate*treatment))
+density.predictions <- as.data.frame(ggpredict(density.glmm.2, terms = ~substrate*treatment))
 
 # Model visualization
 ggplot(density.predictions, aes(x = x, y = predicted, shape = group, group = group)) +
@@ -1031,6 +1108,34 @@ ggplot(density.predictions, aes(x = x, y = predicted, shape = group, group = gro
                      name = "Skeleton treatment") +
     theme_minimal() +
     labs(x = "Substrate type",
+       y = Density~of~recruits~(no./m^2))
+
+# Swap axes
+ggplot(density.predictions, aes(x = group, y = predicted, color = x, group = x)) +
+    # geom_point(data = recruit_density,
+    #            aes(x = substrate, y = density, color = treatment, group = treatment),
+    #            alpha = 0.6,
+    #            position = position_dodge(width = 0.3)) +
+    geom_errorbar(aes(ymax = conf.high,
+                      ymin = conf.low,
+                      group = x),
+                  width = 0,
+                  color = "black",
+                  position = position_dodge(width = 0.3)) +
+  scale_color_manual(values = c("#0B4221", "#E4DECE"),
+                     labels = c("Dead coral", "Reef"),
+                     name = "Subtrate") +
+    geom_line(color = "black",
+               position = position_dodge(width = 0.3),
+              linetype = 4) +
+    geom_point(size = 4,
+               color = "black",
+               position = position_dodge(width = 0.3)) +
+    geom_point(size = 3,
+               position = position_dodge(width = 0.3),
+               aes(color = x)) +
+    theme_minimal() +
+    labs(x = "Skelton treatment",
        y = Density~of~recruits~(no./m^2))
   
 ```
